@@ -91,7 +91,7 @@ if options['USE_FFTW']:
 	extra_objects += ['Deps/nfft/lib/libnfft3.a']
 	# FFTW
 	include_dirs  += ['Deps/fftw/include']
-	extra_objects += ['Deps/fftw/lib/libfftw3.a']
+	libraries += ['fftw3']
 	if options['OPENMP_PARALL']: extra_objects += ['Deps/fftw/lib/libfftw3_omp.a']
 	DFLAGS        += ' -DUSE_FFTW3'
 else:
@@ -112,9 +112,7 @@ if options['USE_MKL']:
 else:
 	# Link with OpenBLAS which has a decent performance but is not
 	# as fast as Intel MKL
-	include_dirs  += ['Deps/lapack/include/openblas']
-	extra_objects += ['Deps/lapack/lib/libopenblas.a']
-	libraries     += ['gfortran']
+	libraries     += ['gfortran','openblas','scalapack']
 	# Classical LAPACK & BLAS library has a very bad performance
 	# but is left here for nostalgia
 	#include_dirs  += ['Deps/lapack/include/']
