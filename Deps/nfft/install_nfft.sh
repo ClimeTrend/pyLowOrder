@@ -42,11 +42,11 @@ else
 	if [ "$USE_OMP" = "ON" ]; then
 		./configure --prefix=${INSTALL_PREFIX} \
 					--enable-openmp \
-					--with-fftw3=${INSTALL_PREFIX}/../fftw \
+					--with-fftw3=/bask/apps/live/EL8-ice/software/FFTW/3.3.10-GCC-11.3.0 \
 					CC="${CCOMPILER}" CFLAGS="${CFLAGS}" LDFLAGS="-lm"
 	else
 		./configure --prefix=${INSTALL_PREFIX} \
-					--with-fftw3=${INSTALL_PREFIX}/../fftw \
+					--with-fftw3=/bask/apps/live/EL8-ice/software/FFTW/3.3.10-GCC-11.3.0 \
 					CC="${CCOMPILER}" CFLAGS="${CFLAGS}" LDFLAGS="-lm"
 	fi
 	# Build
