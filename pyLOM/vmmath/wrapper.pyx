@@ -7,6 +7,8 @@
 # Last rev: 27/10/2021
 from __future__ import print_function, division
 
+from   numpy.lib.stride_tricks import sliding_window_view
+
 cimport cython
 cimport numpy as np
 
@@ -64,6 +66,8 @@ cdef extern from "fft.h":
 	cdef int USE_FFTW3 "_USE_FFTW3"
 	cdef void c_fft "fft"(double *psd, double *y, const double dt, const int n)
 	cdef void c_nfft "nfft"(double *psd, double *t, double* y, const int n)
+cdef extern from "complex.h":
+	cdef np.complex128_t cexp "cexp"(np.complex128_t z)
 
 
 ## Fused type between double and complex
@@ -779,3 +783,209 @@ def cellCenters(double[:,:] xyz,int[:,:] conec):
 		for idim in range(ndim):
 			xyz_cen[ielem,idim] /= float(cc)
 	return xyz_cen
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def pseudo_hankel_matrix(np.ndarray X, int d):
+	"""
+	Arrange the snapshot in the matrix `X` into the (pseudo) Hankel
+	matrix. The attribute `d` controls the number of snapshot from `X` in
+	each snapshot of the Hankel matrix.
+
+	:Example:
+
+		>>> a = np.array([[1, 2, 3, 4, 5]])
+		>>> pseudo_hankel_matrix(a, d=2)
+		array([[1, 2, 3, 4],
+			   [2, 3, 4, 5]])
+		>>> pseudo_hankel_matrix(a, d=4)
+		array([[1, 2],
+			   [2, 3],
+			   [3, 4],
+			   [4, 5]])
+
+		>>> a = np.array([1,2,3,4,5,6]).reshape(2,3)
+		>>> print(a)
+		[[1 2 3]
+		 [4 5 6]]
+		>>> pseudo_hankel_matrix(a, d=2)
+		array([[1, 2],
+			   [4, 5],
+			   [2, 3],
+			   [5, 6]])
+	"""
+	cdef np.ndarray result
+	result = sliding_window_view(X.T, (d, X.shape[0]))[:, 0].reshape(X.shape[1] - d + 1, -1).T
+	return result
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef _exponentials(np.ndarray[complex, ndim=1] alpha, np.ndarray[double, ndim=1] t):
+	'''
+	Matrix of exponentials
+	'''
+	cdef int n = alpha.shape[0]
+	cdef int m = t.shape[0]
+	cdef np.ndarray[complex, ndim=2] result = np.zeros((m, n), dtype=np.complex128)
+	cdef int i, j
+	cdef double complex value
+
+	for i in range(m):
+		for j in range(n):
+			value = t[i] * alpha[j]
+			result[i, j] = cexp(value)
+
+	return result
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef _dExponentials(np.ndarray[complex, ndim=1] alpha, np.ndarray[double, ndim=1] t, int i):
+	"""
+	Derivatives of the matrix of exponentials.
+	"""
+	cdef int m = t.shape[0]
+	cdef int n = alpha.shape[0]
+	if i < 0 or i > n - 1:
+		raise ValueError("Invalid index i given to exp_function_deriv.")
+
+	cdef np.ndarray[complex, ndim=2] A = np.zeros((m,n), dtype=np.complex128)
+	cdef int j
+	cdef double complex value
+
+	for j in range(m):
+		value = t[j] * alpha[i]
+		A[j,i] = t[j] * cexp(value)
+	
+	return A
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef _varpro_opt_compute_B(np.ndarray[complex, ndim=2] _phi, np.ndarray[double, ndim=2] H):
+	"""
+	Update B for the current _phi.
+	"""
+	# Compute B using least squares.
+	cdef np.ndarray[complex, ndim=2] B = np.linalg.lstsq(_phi, H, rcond=None)[0]
+	return B
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cdef _varpro_opt_compute_error(np.ndarray[double, ndim=2] H, np.ndarray[complex, ndim=2] _phi, np.ndarray[complex, ndim=2] B):
+	"""
+	Compute the current residual, objective, and relative error.
+	"""
+	cdef int i, j, k
+	cdef int m = H.shape[0]
+	cdef int n = B.shape[1]
+	cdef int p = _phi.shape[1]
+	
+	cdef np.ndarray[complex, ndim=2] residual  = np.empty((m, n), dtype=np.complex128)
+	cdef np.ndarray[complex, ndim=2] phi_dot_B = np.empty((m, n), dtype=np.complex128)
+	cdef double objective, error
+	cdef double norm_residual, norm_H
+	cdef complex sum
+
+	# Manually perform matrix multiplication _phi * B
+	for i in range(m):
+		for j in range(n):
+			sum = 0
+			for k in range(p):
+				sum += _phi[i, k] * B[k, j]
+			phi_dot_B[i, j] = sum
+
+	# Compute residual H - _phi * B
+	for i in range(m):
+		for j in range(n):
+			residual[i, j] = H[i, j] - phi_dot_B[i, j]
+
+	# Compute Frobenius norms
+	norm_residual = 0
+	norm_H = 0
+	for i in range(m):
+		for j in range(n):
+			norm_residual += (residual[i, j].real ** 2 + residual[i, j].imag ** 2)
+			norm_H        += (H[i, j].real ** 2 + H[i, j].imag ** 2)
+
+	norm_residual = sqrt(norm_residual)
+	norm_H        = sqrt(norm_H)
+
+	# Compute objective and relative error
+	objective = 0.5 * norm_residual ** 2
+	error = norm_residual / norm_H
+
+	return residual, objective, error
+
+@cr('math.varpro_optimization')
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def variable_projection_optimizer(np.ndarray[double, ndim=2] H,np.ndarray[double, ndim=1] iniReal,np.ndarray[double, ndim=1] iniImag,np.ndarray[double, ndim=1] time, int maxiter=30, double _lambda=1.0, int lambda_m=52, int lambda_u=2, double eps_stall=1e-12, double tol=1e-6):
+	
+	cdef int rH, cH
+	cdef int neig
+	cdef int ii, jj, ieig
+
+	rH    = H.shape[0]
+	cH    = H.shape[1]
+	neig  = iniReal.shape[0]
+
+	cdef np.ndarray[complex, ndim=1] alpha = np.empty(neig, dtype=np.complex128)
+	cdef np.ndarray[complex, ndim=2] B
+	cdef np.ndarray[complex, ndim=2] res
+	
+	for ii in range(neig):
+		alpha[ii] = iniReal[ii] + 1j * iniImag[ii]
+	_phi        = _exponentials(alpha, time)
+	B           = _varpro_opt_compute_B(_phi, H)
+	res,obj,err = _varpro_opt_compute_error(H, _phi, B)
+
+	cdef np.ndarray[complex, ndim=2] Up, VTp
+	cdef np.ndarray[double, ndim=1] sp
+
+	Up,sp,VTp = np.linalg.svd(_phi, full_matrices=False)
+	#transform = np.matmul([Up, 1/sp, VTp])
+	
+	cdef int m  = Up.shape[1]
+	cdef int m0 = Up.shape[0]
+	cdef int n  = alpha.shape[0]
+	cdef int p  = time.shape[0]
+
+	cdef np.ndarray[complex, ndim=2] transform1 = np.zeros((m, m), dtype=np.complex128)
+	cdef np.ndarray[complex, ndim=2] transform  = np.zeros((m0, m), dtype=np.complex128)
+
+	for ii in range(n):
+		for jj in range(n):
+			transform1[ii, jj] = 1/sp[ii]*VTp[ii,jj]
+	c_zmatmult(&transform[0,0],&Up[0,0],&transform1[0,0],m0,m,m,"N","N")
+
+	cdef np.ndarray[double,  ndim=1] all_error   = np.zeros(maxiter, dtype=np.float64)
+	cdef np.ndarray[complex, ndim=2] djac_matrix = np.zeros((rH * cH, neig), dtype=np.complex128)
+	cdef np.ndarray[complex, ndim=2] rjac        = np.zeros((2 * neig, neig), dtype=np.complex128)
+	cdef np.ndarray[double,  ndim=1] scales      = np.zeros(neig, dtype=np.float64)
+	cdef np.ndarray[complex, ndim=2] ut_dphi     = np.zeros((m, n), dtype=np.complex128)
+	cdef np.ndarray[complex, ndim=2] uut_dphi    = np.zeros((p, m), dtype=np.complex128)
+	cdef np.ndarray[complex, ndim=2] djac_a      = np.zeros((p, m), dtype=np.complex128)
+	cdef np.ndarray[complex, ndim=2] djac_b      = np.zeros((p, m), dtype=np.complex128)
+	cdef np.ndarray[complex, ndim=2] dphi_temp
+	cdef np.ndarray[complex, ndim=2] dphit_res   = np.zeros((m, n), dtype=np.complex128)
+
+
+	for ii in range(maxiter):
+		for ieig in range(neig):
+			# Build the approximate expression for the Jacobian.
+			dphi_temp = _dExponentials(alpha, time, ieig)
+			c_zmatmult(&ut_dphi[0,0],&Up[0,0],&dphi_temp[0,0],m,n,p,"C","N")
+			c_zmatmult(&uut_dphi[0,0],&Up[0,0],&ut_dphi[0,0],p,n,m,"N","N")
+			dphi_temp -= uut_dphi
+			c_zmatmult(&djac_a[0,0],&dphi_temp[0,0],&B[0,0],p,n,m,"N","N")
+			djac_matrix[:, ieig] = djac_a.ravel(order="F")
+
+			# Compute the full expression for the Jacobian.
+			c_zmatmult(&dphit_res[0,0],&dphi_temp[0,0],&res[0,0],m,n,p,"C","N")
+			c_zmatmult(&djac_b[0,0],&transform[0,0],&dphit_res[0,0],p,n,m,"N","N")
+			djac_matrix[:, ieig] += djac_b.ravel(order="F")
+			scales[ieig] = min(np.linalg.norm(djac_matrix[:, ieig]), 1)
+			scales[ieig] = max(scales[ieig], 1e-6)
+			
+
+	return scales
