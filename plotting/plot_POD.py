@@ -46,11 +46,11 @@ for mode in modes:
     plotter.save('mode_%i_%s.png' % (mode, variable))
 
     plt.figure(figsize=(8,6))
-    plt.plot(V[mode,:],'b', linewidth=2, label='Mode %i'% (mode + 1))
+    plt.plot(V[mode,:],'b', linewidth=2, label='Mode %i'% (mode))
     plt.xlabel('Time [hours]')
     plt.ylabel(r'$V_i$')
-    plt.title('Mode %i' %(mode+1))
-    plt.savefig('temporal_%i_%s.png'%(mode+1,variable), dpi=300)
+    plt.title('Mode %i' %(mode))
+    plt.savefig('temporal_%i_%s.png'%(mode,variable), dpi=300)
 
 energy = np.cumsum(S**2)/np.sum(S**2)
 print(np.argwhere(energy>0.99)[0,0])
