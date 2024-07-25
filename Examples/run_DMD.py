@@ -13,8 +13,8 @@ import pyLOM
 
 
 ## Parameters
-VARLIST  = ['2m_temperature']
-fname    = 'monthly_long'
+VARLIST  = ['temperature']
+fname    = 'daily'
 DATAFILE = 'dataset_%s.h5' % fname
 ## Data loadingx
 pyLOM.pprint(0, 'Loading data...', flush=True)
