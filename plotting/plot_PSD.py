@@ -33,6 +33,6 @@ for mode in modes:
     ax.set_title(f'PSD of mode {mode}')
 
     # save figure
-    plt.savefig(f'figs/PSD_{mode}.png')
+    plt.savefig(f'figs/PSD_{mode}_{variable}.png')
     plt.close()
 
