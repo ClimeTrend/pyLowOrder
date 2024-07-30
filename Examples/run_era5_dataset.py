@@ -1,9 +1,19 @@
+"""
+Script to create a pyLOM dataset (as a .h5 file) from a .nc file containing ERA5 data.
+Currently only works for surface temperature (i.e. 2D data on a lat-lon grid and 1D time).
+Update the file_path and freq variables to match the .nc file you want to convert.
+"""
+
 import netCDF4
 import pyLOM
 import numpy as np
 
-file_path = "/bask/projects/v/vjgo8416-climate/shared/data/era5/2020-01-01_2020-01-30_era5_slice_hourly.nc"
+## User inputs
+file_path = "/bask/projects/v/vjgo8416-climate/shared/data/era5/1990-01-01_2020-01-10_era5_slice_monthly.nc"
+freq = "monthly"
 
+
+print("Loadding dataset...")
 ## Load variables from .nc file
 with netCDF4.Dataset(file_path, 'r') as nc_file:
     #Latitude and longitude
@@ -15,6 +25,7 @@ with netCDF4.Dataset(file_path, 'r') as nc_file:
     #Variables
     temp  = nc_file['2m_temperature'][:]
 
+print("Creating pyLOM dataset...")
 
 minlon, maxlon, nlon = np.min(lon), np.max(lon), lon.shape[0]
 minlat, maxlat, nlat = np.min(lat), np.max(lat), lat.shape[0]
@@ -25,9 +36,11 @@ d = pyLOM.Dataset(ptable=p, mesh=m, time=t)
 
 temp  = temp.reshape(nt, nlat*nlon)
 
-
 d.time = t
 d.add_variable('temperature',True,1,temp.T)
 
-d.save('dataset.h5', nopartition=True)
+print("Saving dataset...")
 
+d.save(f'dataset_{freq}.h5', nopartition=True)
+
+print("Done!")
