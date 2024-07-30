@@ -5,6 +5,8 @@ The plots are saved in the `figs/` folder.
 
 The script requires the following files:
     - The POD file `POD_{variable}.h5`
+
+Make sure to update the user inputs as needed.
 """
 
 from scipy.signal import welch
@@ -17,6 +19,11 @@ variable = 'daily'  # "hourly", "daily", "monthly"
 modes = np.arange(10) # Modes to plot
 fs = 1/24  # Sampling frequency (e.g. for daily, fs=1/24 - 1 sample every 24 hours)
 x_label = 'Frequency [1/hour]'
+color = 'g'  # convention is: monthly -> 'r', daily -> 'g', hourly -> 'b'
+
+## Plotting settings
+font = {'weight': 'bold', 'size': 12}
+plt.rc('font', **font)
 
 ## Load POD
 _, _, V = pyLOM.POD.load('POD_%s.h5' % variable)
@@ -27,12 +34,12 @@ for mode in modes:
 
     # plot in log-log scale
     fig, ax = plt.subplots()
-    ax.loglog(f, Pxx)
+    ax.loglog(f, Pxx, color=color)
     ax.set_xlabel('Frequency [1/hour]')
     ax.set_ylabel('PSD')
     ax.set_title(f'PSD of mode {mode}')
 
     # save figure
-    plt.savefig(f'figs/PSD_{mode}_{variable}.png')
+    plt.savefig(f'figs/PSD_{mode}_{variable}.pdf', dpi=300)
     plt.close()
 

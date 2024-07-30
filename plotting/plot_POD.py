@@ -7,6 +7,7 @@ The plots are saved in the `figs/` folder.
 The script requires the following files:
     - The dataset file `dataset_{variable}.h5`
     - The POD file `POD_{variable}.h5`
+Make sure to update the user inputs as needed.
 """
 
 import pyLOM
@@ -14,14 +15,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import MapPlotter as mp
 
-font = {'weight': 'bold', 'size': 12}
-plt.rc('font', **font)
-
 ## User Inputs
 variable = 'daily'  # "hourly", "daily", "monthly"
 modes    = np.arange(20)  # Modes to plot
 prlevel  = 0
 x_label_temporal = 'Time [days]'
+color = 'g'  # convention is: monthly -> 'r', daily -> 'g', hourly -> 'b'
+
+## Plotting settings
+font = {'weight': 'bold', 'size': 12}
+plt.rc('font', **font)
 
 ## Dataset load
 d = pyLOM.Dataset.load('dataset_%s.h5'%variable)
@@ -61,7 +64,7 @@ for mode in modes:
 
 
     plt.figure(figsize=(8,6))
-    plt.plot(V[mode,:],'g', linewidth=2, label='Mode %i'% (mode))
+    plt.plot(V[mode,:],color, linewidth=2, label='Mode %i'% (mode))
     plt.xlabel(x_label_temporal)
     plt.ylabel(r'$V_i$')
     plt.title('Mode %i' %(mode))
@@ -72,10 +75,10 @@ for mode in modes:
 energy = np.cumsum(S**2)/np.sum(S**2)
 print(np.argwhere(energy>0.99)[0,0])
 plt.figure()
-plt.plot(np.cumsum(S**2)/np.sum(S**2),'bo')
+plt.plot(np.cumsum(S**2)/np.sum(S**2), 'o-', color=color)
 plt.xlabel('Mode')
 plt.ylabel('Cumulative energy')
-plt.savefig('figs/energy_%s.png'%variable, dpi=300)
+plt.savefig('figs/energy_%s.pdf'%variable, dpi=300)
 plt.close()
 
 #plt.show()
