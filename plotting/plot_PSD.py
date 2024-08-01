@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 import pyLOM
 
 ## User Inputs
-variable = 'daily'  # "hourly", "daily", "monthly"
+variable = 'biweekly'  # "hourly", "daily", "monthly", "biweekly"
 modes = np.arange(5) # Modes to plot
-fs = 1/24  # Sampling frequency (e.g. for daily, fs=1/24 - 1 sample every 24 hours)
+fs = 1/336  # Sampling frequency: how many samples per hour (e.g. for daily, fs=1/24 - 1 sample every 24 hours)
 x_label = 'Frequency [1/hour]'
 
 ## Plotting settings
