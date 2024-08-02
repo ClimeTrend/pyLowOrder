@@ -16,7 +16,7 @@ import os, numpy as np
 import pyLOM
 
 ## User inputs
-freq = "monthly"
+freq = "biweekly"
 DATAFILE = f'dataset_{freq}.h5'
 VARLIST  = ['temperature']
 

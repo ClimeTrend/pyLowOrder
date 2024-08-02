@@ -16,11 +16,11 @@ import numpy as np
 import MapPlotter as mp
 
 ## User Inputs
-variable = 'daily'  # "hourly", "daily", "monthly"
-modes    = np.arange(20)  # Modes to plot
+variable = 'biweekly'  # "hourly", "daily", "monthly", "fortnightly"
+modes    = np.arange(5)  # Modes to plot
 prlevel  = 0
-x_label_temporal = 'Time [days]'
-color = 'g'  # convention is: monthly -> 'r', daily -> 'g', hourly -> 'b'
+x_label_temporal = 'Time [fortnights]'
+color = 'r'  # convention is: monthly -> 'r', daily -> 'g', hourly -> 'b'
 
 ## Plotting settings
 font = {'weight': 'bold', 'size': 12}
