@@ -9,7 +9,7 @@
 __VERSION__ = '1.5.0'
 
 # Vector matrix routines
-from .wrapper import transpose, vector_norm, matmul, matmulp, vecmat, argsort, eigen, polar, cholesky, vandermonde, conj, diag, inv, flip, vandermondeTime
+from .wrapper import transpose, vector_norm, matmul, matmulp, vecmat, argsort, eigen, polar, cholesky, vandermonde, conj, diag, inv, flip, vandermondeTime, pseudo_hankel_matrix
 # Averaging routines
 from .wrapper import temporal_mean, subtract_mean, RMSE
 # SVD routines
@@ -18,6 +18,7 @@ from .wrapper import qr, svd, tsqr, tsqr_svd
 from .wrapper import fft
 # Cell center routines
 from .wrapper import cellCenters
-
+# Optimizers
+from .wrapper import variable_projection_optimizer
 
 del wrapper

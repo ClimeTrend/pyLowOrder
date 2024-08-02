@@ -423,7 +423,7 @@ def h5_load_serial(fname):
 		npoints, ncells = h5_load_size(file)
 		# Redo the partitions table
 		ptable = PartitionTable.new(MPI_SIZE,ncells,npoints)
-		repart = True
+		repart = False
 	# Read the mesh
 	mesh, inods = h5_load_mesh(file,ptable,repart)
 	# Figure out how many partitions we have
@@ -453,7 +453,7 @@ def h5_load_mpio(fname):
 		npoints, ncells = h5_load_size(file)
 		# Redo the partitions table
 		ptable = PartitionTable.new(MPI_SIZE,ncells,npoints)
-		repart = True
+		repart = False
 	# Read the mesh
 	mesh, inods = h5_load_mesh(file,ptable,repart)
 	# Figure out how many partitions we have
@@ -514,7 +514,7 @@ def h5_load_POD(fname,vars,nmod,ptable=None):
 		# Read
 		nvars = int(file['POD']['n_variables'][0])
 		point = bool(file['POD']['pointData'][0])
-		istart, iend = ptable.partition_bounds(MPI_RANK,ndim=nvars,point=point)
+		istart, iend = ptable.partition_bounds(MPI_RANK,ndim=nvars,points=point)
 		varList.append( np.array(file['POD']['U'][istart:iend,:nmod]) )
 	if 'S' in vars: varList.append( np.array(file['POD']['S'][:]) )
 	if 'V' in vars: varList.append( np.array(file['POD']['V'][:,:]) )
